@@ -1,0 +1,25 @@
+# Private user data — never commit
+data/*
+!data/README.md
+
+# Built vector index
+index/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Facebook export archives
+*.zip

@@ -1,0 +1,24 @@
+[
+  {
+    "post_id": "sample-1",
+    "title": "Alex Example posted in Coaching Circle.",
+    "group_name": "Coaching Circle",
+    "author": "Alex Example",
+    "post_date": "2025-09-02",
+    "timestamp_raw": "Sep 02, 2025 8:14:45 pm",
+    "body": "Celebrating day one of the workbook! Feeling grateful for the community support.",
+    "post_type": "celebration",
+    "source_file": "sample"
+  },
+  {
+    "post_id": "sample-2",
+    "title": "Alex Example posted in Coaching Circle.",
+    "group_name": "Coaching Circle",
+    "author": "Alex Example",
+    "post_date": "2025-09-04",
+    "timestamp_raw": "Sep 04, 2025 6:00:00 pm",
+    "body": "Sep 4th distinctions - revelation that I can trust the process even when I feel stuck.",
+    "post_type": "revelation",
+    "source_file": "sample"
+  }
+]
