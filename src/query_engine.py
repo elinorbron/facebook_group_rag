@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import re
-from datetime import datetime
-
-from dateutil import parser as date_parser
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -16,33 +12,7 @@ from src.config import (
     INDEX_DIR,
     OLLAMA_BASE_URL,
 )
-
-MONTHS = {
-    "january": 1,
-    "february": 2,
-    "march": 3,
-    "april": 4,
-    "may": 5,
-    "june": 6,
-    "july": 7,
-    "august": 8,
-    "september": 9,
-    "october": 10,
-    "november": 11,
-    "december": 12,
-    "jan": 1,
-    "feb": 2,
-    "mar": 3,
-    "apr": 4,
-    "jun": 6,
-    "jul": 7,
-    "aug": 8,
-    "sep": 9,
-    "sept": 9,
-    "oct": 10,
-    "nov": 11,
-    "dec": 12,
-}
+from src.query_parsing import format_docs, iso_to_int, is_summary_query, parse_month_year, parse_single_date
 
 ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -93,48 +63,6 @@ def get_llm() -> ChatOllama:
     return ChatOllama(model=CHAT_MODEL, base_url=OLLAMA_BASE_URL, temperature=0.2)
 
 
-def _is_summary_query(question: str) -> bool:
-    q = question.lower()
-    return any(word in q for word in ("summarize", "summary", "overview", "themes", "recap"))
-
-
-def _parse_month_year(question: str) -> tuple[str, str] | None:
-    q = question.lower()
-    year_match = re.search(r"(20\d{2})", q)
-    year = year_match.group(1) if year_match else str(datetime.now().year)
-
-    for name, month_num in MONTHS.items():
-        if re.search(rf"\b{name}\b", q):
-            start = f"{year}-{month_num:02d}-01"
-            if month_num == 12:
-                end = f"{int(year) + 1}-01-01"
-            else:
-                end = f"{year}-{month_num + 1:02d}-01"
-            return start, end
-    return None
-
-
-def _parse_single_date(question: str) -> str | None:
-    # Try explicit dates like Sep 02, 2025 or 2025-09-02
-    patterns = [
-        r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,?\s+\d{4})?\b",
-        r"\b\d{4}-\d{2}-\d{2}\b",
-        r"\b\d{1,2}/\d{1,2}/\d{2,4}\b",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, question, re.IGNORECASE)
-        if match:
-            try:
-                return date_parser.parse(match.group(0), fuzzy=True).date().isoformat()
-            except (ValueError, OverflowError):
-                continue
-    return None
-
-
-def _iso_to_int(iso_date: str) -> int:
-    return int(iso_date.replace("-", ""))
-
-
 def _docs_from_results(results: dict) -> list[Document]:
     return [
         Document(page_content=text, metadata=meta)
@@ -142,21 +70,10 @@ def _docs_from_results(results: dict) -> list[Document]:
     ]
 
 
-def _format_docs(docs: list[Document]) -> str:
-    blocks = []
-    for doc in docs:
-        meta = doc.metadata
-        blocks.append(
-            f"[{meta.get('post_date', 'unknown date')} | {meta.get('group_name', '')} | {meta.get('post_type', '')}]\n"
-            f"{doc.page_content}"
-        )
-    return "\n\n---\n\n".join(blocks)
-
-
 def _retrieve_docs(store: Chroma, question: str, k: int = 8) -> list[Document]:
-    single_date = _parse_single_date(question)
-    month_range = None if single_date else _parse_month_year(question)
-    summarize = _is_summary_query(question)
+    single_date = parse_single_date(question)
+    month_range = None if single_date else parse_month_year(question)
+    summarize = is_summary_query(question)
 
     if single_date and not summarize:
         results = store.get(where={"post_date": single_date})
@@ -169,8 +86,8 @@ def _retrieve_docs(store: Chroma, question: str, k: int = 8) -> list[Document]:
         results = store.get(
             where={
                 "$and": [
-                    {"post_date_int": {"$gte": _iso_to_int(start)}},
-                    {"post_date_int": {"$lt": _iso_to_int(end)}},
+                    {"post_date_int": {"$gte": iso_to_int(start)}},
+                    {"post_date_int": {"$lt": iso_to_int(end)}},
                 ]
             }
         )
@@ -184,7 +101,7 @@ def _retrieve_docs(store: Chroma, question: str, k: int = 8) -> list[Document]:
 
 def _batch_summarize(llm: ChatOllama, docs: list[Document], question: str) -> str:
     if len(docs) <= 12:
-        context = _format_docs(docs)
+        context = format_docs(docs)
         chain = SUMMARY_PROMPT | llm
         return chain.invoke({"context": context, "question": question}).content
 
@@ -192,7 +109,7 @@ def _batch_summarize(llm: ChatOllama, docs: list[Document], question: str) -> st
     partials: list[str] = []
     for i in range(0, len(docs), batch_size):
         batch = docs[i : i + batch_size]
-        context = _format_docs(batch)
+        context = format_docs(batch)
         chain = SUMMARY_PROMPT | llm
         partial = chain.invoke(
             {"context": context, "question": "Summarize key themes in this batch."}
@@ -215,10 +132,10 @@ def ask(question: str) -> dict:
             "sources": [],
         }
 
-    if _is_summary_query(question):
+    if is_summary_query(question):
         answer = _batch_summarize(llm, docs, question)
     else:
-        context = _format_docs(docs)
+        context = format_docs(docs)
         chain = ANSWER_PROMPT | llm
         answer = chain.invoke({"context": context, "question": question}).content
 
