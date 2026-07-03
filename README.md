@@ -17,7 +17,7 @@ Everything runs locally with [Ollama](https://ollama.com). Your Facebook data ne
 ```bash
 git clone <your-repo-url> facebook_group_rag
 cd facebook_group_rag
-./setup.sh
+make install
 ```
 
 Add your Facebook export to `data/` (see below), then:
@@ -55,17 +55,21 @@ The `data/` folder is gitignored. Only you have your data.
 ## Usage
 
 ```bash
+make install  # install Python deps and pull Ollama models
 make ingest   # (re)build the search index from data/
 make run      # start the chat UI
+make test     # run unit tests
 make clean    # delete the index
 ```
+
+`make install` is a convenience wrapper around `./setup.sh`.
 
 ### Example questions
 
 - What did I post on March 15, 2024?
 - Summarize my posts from April
-- What topics come up most often in this group?
-- What did people say about [topic]?
+- What themes and changes do you see across my posts?
+- What did I post most about in Sep 2025?
 
 ### Filter by group (optional)
 
