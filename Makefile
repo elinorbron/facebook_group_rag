@@ -1,4 +1,4 @@
-.PHONY: install ingest run clean
+.PHONY: install ingest run test clean
 
 ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PYTHON := $(ROOT).venv/bin/python
@@ -12,6 +12,9 @@ ingest:
 
 run:
 	cd $(ROOT) && ANONYMIZED_TELEMETRY=False PYTHONPATH=$(ROOT) $(STREAMLIT) run src/app.py
+
+test:
+	cd $(ROOT) && PYTHONPATH=$(ROOT) $(PYTHON) -m pytest tests/ -q
 
 clean:
 	rm -rf $(ROOT)index/*
